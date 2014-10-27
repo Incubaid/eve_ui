@@ -1,0 +1,138 @@
+<html>
+<head>
+    <title></title>
+    <script src="//code.jquery.com/jquery-1.11.0.js"></script>
+    <script src="//cdn.datatables.net/1.10.3/js/jquery.dataTables.js"></script>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/angular.js/1.2.20/angular.js"></script>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//cdn.datatables.net/1.10.3/css/jquery.dataTables.min.css">
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+</head>
+<body ng-app="eveApp" ng-controller="EveController">
+    <div class="container">
+        
+    <table id="example" class="display" cellspacing="0" width="100%">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Born</th>
+                <th>Location</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+ 
+        <tfoot>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Born</th>
+                <th>Location</th>
+                <th>Actions</th>
+            </tr>
+        </tfoot>
+    </table>
+    <button id="delete">Delete Selected</button>
+    <form role="form">
+          <div class="form-group" ng-repeat="param in schema.domains.people['/people'].POST.params track by $index">
+            <label for="exampleInputEmail1">{[ capitalize(param.name) ]}</label>
+            <input type="email" class="form-control" id="exampleInputEmail1" placeholder="Enter email">
+          </div>
+          <button type="submit" class="btn btn-default">Submit</button>
+    </form>
+    </div>
+    
+<script>
+    var eveApp = angular.module('eveApp', []);
+    eveApp.controller('EveController', function($scope, $http) {
+        $http.get('http://localhost:5000/docs/spec.json').then(function(schema) {
+            $scope.schema = schema.data;
+        });
+
+       $http.get('http://localhost:5000/people').then(function(people) {
+            $scope.people = people.data._items;
+        });
+
+        $scope.capitalize = function(str) {
+            return str[0].toUpperCase() + str.substring(1).toLowerCase();
+        };
+
+    });
+    eveApp.config(['$interpolateProvider', function($interpolateProvider) {
+        $interpolateProvider.startSymbol('{[').endSymbol(']}');
+    }]);
+
+    $(document).ready(function() {
+        window.dataTable = $('#example').DataTable( {
+            "processing": true,
+            'serverSide': true,
+            /*"ajax": {
+                url: "people",
+
+                // Change the parameters sent by DT to the ones accepted by Eve
+                data: function(d) {
+                    d.page = d.start / d.length + 1;
+                    d.max_results = d.length;
+                },
+                // Convert the parameters from Eve to the ones accepted by DT
+                dataSrc: function(d) {
+                    d['sRecordsTotal'] = d['_meta']['total'];
+                    d['sRecordsDisplay'] = d['_meta']['max_results'];
+                    d['data'] = d['_items'];
+                    return d;
+                },
+                done: function(d) {
+                    console.log(d);
+                    return this;
+                }
+            },*/
+            ajax: function (data, callback, settings) {
+                data.page = data.start / data.length + 1;
+                data.max_results = data.length;
+                $.ajax({
+                    url: 'people',
+                    data: data,
+                    success: function(data) {
+                        data['recordsTotal'] = data['_meta']['total'];
+                        data['iTotalRecords'] = data['_meta']['total'];
+                        data['iTotalDisplayRecords'] = data['_meta']['max_results'];
+                        data['data'] = data['_items'];
+                        callback(data);
+                    }
+                })
+            },
+            "columns": [
+                { "data": "name", sDefaultContent: ''},
+                { "data": "email", sDefaultContent: ''},
+                { "data": "born", sDefaultContent: ''},
+                { "data": "location", sDefaultContent: ''},
+                {data: null, defaultContent: '<input type="checkbox"></input>'}
+            ]
+        } );
+
+        $('#delete').on('click', function() {
+            var trs = $('#example input[type=checkbox]:checked').parents('tr');
+            trs.each(function(tr) {
+                var data = dataTable.row(tr).data();
+                $.ajax({
+                    type: 'POST',
+                    url: data._links.self.href,
+                    headers: {
+                        'X-HTTP-Method-Override': 'DELETE',
+                        'If-Match': data._etag
+                    }
+                });
+            });
+        });
+
+    
+    } );
+</script>
+</body>
+</html>
