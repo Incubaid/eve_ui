@@ -92,27 +92,27 @@
                     return this;
                 }
             },*/
-            ajax: function (data, callback, settings) {
-                data.page = data.start / data.length + 1;
-                data.max_results = data.length;
+            ajax: function (requestData, callback, settings) {
+                requestData.page = requestData.start / requestData.length + 1;
+                requestData.max_results = requestData.length;
                 var searchTerm = $('input[type=search]').val();
                 if (searchTerm && searchTerm.length > 0)
-                    data.where = ('{"name":{"$regex":"' + $('input[type=search]').val() + '", "$options": "i"}}');
+                    requestData.where = ('{"name":{"$regex":"' + $('input[type=search]').val() + '", "$options": "i"}}');
 
-                if (data.order && data.order.length > 0) {
-                    sort_field = columns[data.order[0].column].data;
-                    sort_dir = data.order[0].dir == 'desc' ? -1 : 1
-                    data.sort = '[("' + sort_field + '",' + sort_dir + ')]';
+                if (requestData.order && requestData.order.length > 0) {
+                    sort_field = columns[requestData.order[0].column].data;
+                    sort_dir = requestData.order[0].dir == 'desc' ? -1 : 1
+                    requestData.sort = '[("' + sort_field + '",' + sort_dir + ')]';
                 }
     
                 $.ajax({
                     url: 'people',
-                    data: data,
+                    data: requestData,
                     success: function(data) {
                         if (data['_meta']) {
                             data['recordsTotal'] = data['_meta']['total'];
                             data['iTotalRecords'] = data['_meta']['total'];
-                            data['iTotalDisplayRecords'] = data['_meta']['max_results'];
+                            data['iTotalDisplayRecords'] = data['_meta']['total'];
                         }
                         data['data'] = data['_items'];
                         callback(data);
