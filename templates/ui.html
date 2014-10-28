@@ -26,19 +26,10 @@
                 <th>Location</th>
                 <th>Actions</th>
             </tr>
-        </thead>
- 
-        <tfoot>
-            <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Born</th>
-                <th>Location</th>
-                <th>Actions</th>
-            </tr>
-        </tfoot>
+        </thead> 
     </table>
     <button id="delete">Delete Selected</button>
+    <!--
     <form role="form">
           <div class="form-group" ng-repeat="param in schema.domains.people['/people'].POST.params track by $index">
             <label for="exampleInputEmail1">{[ capitalize(param.name) ]}</label>
@@ -46,6 +37,7 @@
           </div>
           <button type="submit" class="btn btn-default">Submit</button>
     </form>
+    -->
     </div>
     
 <script>
@@ -69,6 +61,14 @@
     }]);
 
     $(document).ready(function() {
+        var columns = [
+            { "data": "name", sDefaultContent: ''},
+            { "data": "email", sDefaultContent: ''},
+            { "data": "born", sDefaultContent: ''},
+            { "data": "location", sDefaultContent: ''},
+            {data: null, defaultContent: '<input type="checkbox"></input>'}
+        ];
+
         window.dataTable = $('#example').DataTable( {
             "processing": true,
             'serverSide': true,
@@ -95,25 +95,31 @@
             ajax: function (data, callback, settings) {
                 data.page = data.start / data.length + 1;
                 data.max_results = data.length;
+                var searchTerm = $('input[type=search]').val();
+                if (searchTerm && searchTerm.length > 0)
+                    data.where = ('{"name":{"$regex":"' + $('input[type=search]').val() + '", "$options": "i"}}');
+
+                if (data.order && data.order.length > 0) {
+                    sort_field = columns[data.order[0].column].data;
+                    sort_dir = data.order[0].dir == 'desc' ? -1 : 1
+                    data.sort = '[("' + sort_field + '",' + sort_dir + ')]';
+                }
+    
                 $.ajax({
                     url: 'people',
                     data: data,
                     success: function(data) {
-                        data['recordsTotal'] = data['_meta']['total'];
-                        data['iTotalRecords'] = data['_meta']['total'];
-                        data['iTotalDisplayRecords'] = data['_meta']['max_results'];
+                        if (data['_meta']) {
+                            data['recordsTotal'] = data['_meta']['total'];
+                            data['iTotalRecords'] = data['_meta']['total'];
+                            data['iTotalDisplayRecords'] = data['_meta']['max_results'];
+                        }
                         data['data'] = data['_items'];
                         callback(data);
                     }
                 })
             },
-            "columns": [
-                { "data": "name", sDefaultContent: ''},
-                { "data": "email", sDefaultContent: ''},
-                { "data": "born", sDefaultContent: ''},
-                { "data": "location", sDefaultContent: ''},
-                {data: null, defaultContent: '<input type="checkbox"></input>'}
-            ]
+            "columns": columns
         } );
 
         $('#delete').on('click', function() {
