@@ -14,15 +14,6 @@
 <body ng-app="eveApp" ng-controller="EveController">
     <div class="container">
         <table id="example" class="display" cellspacing="0" width="100%">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Born</th>
-                    <th>Location</th>
-                    <th>Actions</th>
-                </tr>
-            </thead> 
         </table>
         <button id="delete">Delete Selected</button>
         <form role="form" ng-show="currentItem" method="post" action="{[ '/people/' + currentItem._id ]}">
@@ -39,47 +30,59 @@
 <script>
     var eveApp = angular.module('eveApp', []);
     eveApp.controller('EveController', function($scope, $http) {
-        $scope.columns = [
-            { "data": "name", "factory": "str", sDefaultContent: ''},
-            { "data": "email", "factory": "str", sDefaultContent: ''},
-            { "data": "born", "factory": "str", sDefaultContent: ''},
-            { "data": "location", "factory": "dict", sDefaultContent: '', render: function(data) { return JSON.stringify(data); }},
-            {data: null, defaultContent: '<input type="checkbox"></input>'}
-        ];
-
-        $scope.dataTable = $('#example').DataTable( {
-            "processing": true,
-            'serverSide': true,
-            ajax: function (requestData, callback, settings) {
-                requestData.page = requestData.start / requestData.length + 1;
-                requestData.max_results = requestData.length;
-                var searchTerm = $('input[type=search]').val();
-                if (searchTerm && searchTerm.length > 0)
-                    requestData.where = ('{"name":{"$regex":"' + $('input[type=search]').val() + '", "$options": "i"}}');
-
-                if (requestData.order && requestData.order.length > 0) {
-                    sort_field = $scope.columns[requestData.order[0].column].data;
-                    sort_dir = requestData.order[0].dir == 'desc' ? -1 : 1
-                    requestData.sort = '[("' + sort_field + '",' + sort_dir + ')]';
+        $http.get('/docs/spec.json').then(function(data) {
+            $scope.schema = data.data;
+            $scope.columns = $scope.schema.domains.people['/people'].POST.params.filter(function(p) { return p.name.indexOf('.') == -1; }).map(function(param) {
+                var column = {};
+                column.data = param.name;
+                column.title = param.name;
+                column.defaultContent = '';
+                column.factory = param.type;
+                column.render = function(data) {
+                    if (column.factory == 'dict')
+                        return JSON.stringify(data);
+                    else
+                        return data || '';
                 }
-    
-                $.ajax({
-                    url: 'people',
-                    cache: false,
-                    data: requestData,
-                    success: function(data) {
-                        if (data['_meta']) {
-                            data['recordsTotal'] = data['_meta']['total'];
-                            data['iTotalRecords'] = data['_meta']['total'];
-                            data['iTotalDisplayRecords'] = data['_meta']['total'];
-                        }
-                        data['data'] = data['_items'];
-                        callback(data);
+                return column;
+            });
+
+            $scope.columns.push({data: null, defaultContent: '<input type="checkbox"></input>'});
+            $scope.dataTable = $('#example').DataTable( {
+                "processing": true,
+                'serverSide': true,
+                ajax: function (requestData, callback, settings) {
+                    requestData.page = requestData.start / requestData.length + 1;
+                    requestData.max_results = requestData.length;
+                    var searchTerm = $('input[type=search]').val();
+                    if (searchTerm && searchTerm.length > 0)
+                        requestData.where = ('{"name":{"$regex":"' + $('input[type=search]').val() + '", "$options": "i"}}');
+
+                    if (requestData.order && requestData.order.length > 0) {
+                        sort_field = $scope.columns[requestData.order[0].column].data;
+                        sort_dir = requestData.order[0].dir == 'desc' ? -1 : 1
+                        requestData.sort = '[("' + sort_field + '",' + sort_dir + ')]';
                     }
-                });
-            },
-            "columns": $scope.columns
-        } );
+        
+                    $.ajax({
+                        url: 'people',
+                        cache: false,
+                        data: requestData,
+                        success: function(data) {
+                            if (data['_meta']) {
+                                data['recordsTotal'] = data['_meta']['total'];
+                                data['iTotalRecords'] = data['_meta']['total'];
+                                data['iTotalDisplayRecords'] = data['_meta']['total'];
+                            }
+                            data['data'] = data['_items'];
+                            callback(data);
+                        }
+                    });
+                },
+                "columns": $scope.columns
+            } );
+        });
+
         $('#example').on('click', 'input[type=checkbox]', function() {
             $(this).parents('tr').toggleClass('selected');
         });
