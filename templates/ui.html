@@ -126,6 +126,7 @@
                 data: JSON.stringify(inputValues),
                 url: $form.attr('action'),
                 headers: {
+                    'Content-Type': 'application/json',
                     'X-HTTP-Method-Override': 'PATCH',
                     'If-Match': $form.find('#_etag').val()
                 },
