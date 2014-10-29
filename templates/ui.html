@@ -3,16 +3,13 @@
     <title></title>
     <script src="//code.jquery.com/jquery-1.11.0.js"></script>
     <script src="//cdn.datatables.net/1.10.3/js/jquery.dataTables.js"></script>
-
     <script src="//cdnjs.cloudflare.com/ajax/libs/angular.js/1.2.20/angular.js"></script>
-    <!-- Latest compiled and minified CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
-    <link rel="stylesheet" href="//cdn.datatables.net/1.10.3/css/jquery.dataTables.min.css">
-    <!-- Optional theme -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
 
-    <!-- Latest compiled and minified JavaScript -->
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//cdn.datatables.net/1.10.3/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+
 </head>
 <body ng-app="eveApp" ng-controller="EveController">
     <div class="container">
@@ -28,47 +25,29 @@
             </thead> 
         </table>
         <button id="delete">Delete Selected</button>
-        <!--
-        <form role="form">
-              <div class="form-group" ng-repeat="param in schema.domains.people['/people'].POST.params track by $index">
-                <label for="exampleInputEmail1">{[ capitalize(param.name) ]}</label>
-                <input type="email" class="form-control" id="exampleInputEmail1" placeholder="Enter email">
-              </div>
-              <button type="submit" class="btn btn-default">Submit</button>
+        <form role="form" ng-show="currentItem" method="post" action="{[ '/people/' + currentItem._id ]}">
+            <input type="hidden" id="_id" value="{[ currentItem._id ]}">
+            <input type="hidden" id="_etag" value="{[ currentItem._etag ]}">
+            <div class="form-group" ng-repeat="col in columns" ng-show="col.data">
+                <label>{[ col.data ]}</label>
+                <input type="text" factory="{[ col.factory ]}" class="form-control" id="{[ col.data ]}" ng-model="currentItem[col.data]">
+            </div>
+            <button type="submit" class="btn btn-default">Submit</button>
         </form>
-        -->
     </div>
-    
+
 <script>
     var eveApp = angular.module('eveApp', []);
     eveApp.controller('EveController', function($scope, $http) {
-        $http.get('http://localhost:5000/docs/spec.json').then(function(schema) {
-            $scope.schema = schema.data;
-        });
-
-       $http.get('http://localhost:5000/people').then(function(people) {
-            $scope.people = people.data._items;
-        });
-
-        $scope.capitalize = function(str) {
-            return str[0].toUpperCase() + str.substring(1).toLowerCase();
-        };
-
-    });
-    eveApp.config(['$interpolateProvider', function($interpolateProvider) {
-        $interpolateProvider.startSymbol('{[').endSymbol(']}');
-    }]);
-
-    $(document).ready(function() {
-        var columns = [
-            { "data": "name", sDefaultContent: ''},
-            { "data": "email", sDefaultContent: ''},
-            { "data": "born", sDefaultContent: ''},
-            { "data": "location", sDefaultContent: ''},
+        $scope.columns = [
+            { "data": "name", "factory": "str", sDefaultContent: ''},
+            { "data": "email", "factory": "str", sDefaultContent: ''},
+            { "data": "born", "factory": "str", sDefaultContent: ''},
+            { "data": "location", "factory": "dict", sDefaultContent: '', render: function(data) { return JSON.stringify(data); }},
             {data: null, defaultContent: '<input type="checkbox"></input>'}
         ];
 
-        window.dataTable = $('#example').DataTable( {
+        $scope.dataTable = $('#example').DataTable( {
             "processing": true,
             'serverSide': true,
             ajax: function (requestData, callback, settings) {
@@ -79,7 +58,7 @@
                     requestData.where = ('{"name":{"$regex":"' + $('input[type=search]').val() + '", "$options": "i"}}');
 
                 if (requestData.order && requestData.order.length > 0) {
-                    sort_field = columns[requestData.order[0].column].data;
+                    sort_field = $scope.columns[requestData.order[0].column].data;
                     sort_dir = requestData.order[0].dir == 'desc' ? -1 : 1
                     requestData.sort = '[("' + sort_field + '",' + sort_dir + ')]';
                 }
@@ -99,9 +78,8 @@
                     }
                 });
             },
-            "columns": columns
+            "columns": $scope.columns
         } );
-
         $('#example').on('click', 'input[type=checkbox]', function() {
             $(this).parents('tr').toggleClass('selected');
         });
@@ -110,7 +88,7 @@
             var trs = $('#example input[type=checkbox]:checked').parents('tr');
             var finishedRequests = 0;
             trs.each(function(i, tr) {
-                var data = dataTable.row(tr).data();
+                var data = $scope.dataTable.row(tr).data();
                 $.ajax({
                     type: 'POST',
                     url: data._links.self.href,
@@ -121,13 +99,48 @@
                     success: function() {
                         finishedRequests++;
                         if (finishedRequests == trs.length) {
-                            dataTable.draw();
+                            $scope.dataTable.draw();
                         }
                     }
                 });
             });
         });
-    } );
+
+        $('form').on('click', 'button', function() {
+            var $form = $(this).parents('form');
+            var inputValues = {};
+            var inputs = $form.find('input[type=text]:visible');
+            for (var i = 0; i < inputs.length; i++) {
+                var input = $(inputs[i]);
+                var val = input.val();
+                if (input.attr('factory') == 'dict')
+                    val = JSON.parse(val);
+                inputValues[input.attr('id')] = val;
+            }
+
+            $.ajax({
+                type: 'POST',
+                data: JSON.stringify(inputValues),
+                url: $form.attr('action'),
+                headers: {
+                    'X-HTTP-Method-Override': 'PATCH',
+                    'If-Match': $form.find('#_etag').val()
+                },
+                success: function() {
+                    console.log("success");
+                }
+            });
+            return false;
+        });
+
+        $('#example').on('click', 'tr', function() {
+            $scope.currentItem = $scope.dataTable.row(this).data();
+            $scope.$digest();
+        });
+    });
+    eveApp.config(['$interpolateProvider', function($interpolateProvider) {
+        $interpolateProvider.startSymbol('{[').endSymbol(']}');
+    }]);
 </script>
 </body>
 </html>
