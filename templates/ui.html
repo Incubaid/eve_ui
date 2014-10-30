@@ -1,14 +1,10 @@
 <html>
 <head>
     <title></title>
-    <script src="//code.jquery.com/jquery-1.11.0.js"></script>
-    <script src="//cdn.datatables.net/1.10.3/js/jquery.dataTables.js"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/angular.js/1.2.20/angular.js"></script>
-    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
 
-    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
-    <link rel="stylesheet" href="//cdn.datatables.net/1.10.3/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="/static/css/bootstrap-theme.min.css">
 
 </head>
 <body ng-app="eveApp" ng-controller="EveController">
@@ -27,30 +23,38 @@
         </form>
     </div>
 
+    <script src="/static/js/jquery-1.11.0.js"></script>
+    <script src="/static/js/jquery.dataTables.js"></script>
+    <script src="/static/js//angular.js"></script>
+    <script src="/static/js/bootstrap.min.js"></script>
+    <script src="/static/js/underscore.js"></script>
+
 <script>
     var eveApp = angular.module('eveApp', []);
     eveApp.controller('EveController', function($scope, $http) {
         $http.get('/docs/spec.json').then(function(data) {
             $scope.schema = data.data;
-            $scope.columns = $scope.schema.domains.people['/people'].POST.params.filter(function(p) { return p.name.indexOf('.') == -1; }).map(function(param) {
-                var column = {};
-                column.data = param.name;
-                column.title = param.name;
-                column.defaultContent = '';
-                column.factory = param.type;
-                column.render = function(data) {
-                    if (column.factory == 'dict')
-                        return JSON.stringify(data);
-                    else
-                        return data || '';
-                }
-                return column;
-            });
+            $scope.columns = [{data: null, orderable: false, defaultContent: '<input class="rowCheck" type="checkbox"></input>', 'title': '<input id="allCheck" type="checkbox"></input>'}]
+                .concat($scope.schema.domains.people['/people'].POST.params
+                    .filter(function(p) { return p.name.indexOf('.') == -1; })
+                    .map(function(param) {
+                    var column = {};
+                    column.data = param.name;
+                    column.title = param.name;
+                    column.defaultContent = '';
+                    column.factory = param.type;
+                    column.render = function(data) {
+                        if (column.factory == 'dict')
+                            return JSON.stringify(data);
+                        else
+                            return data || '';
+                    }
+                    return column;
+                }));
 
-            $scope.columns.push({data: null, defaultContent: '<input type="checkbox"></input>'});
             $scope.dataTable = $('#example').DataTable( {
-                "processing": true,
-                'serverSide': true,
+                processing: true,
+                serverSide: true,
                 ajax: function (requestData, callback, settings) {
                     requestData.page = requestData.start / requestData.length + 1;
                     requestData.max_results = requestData.length;
@@ -83,8 +87,19 @@
             } );
         });
 
-        $('#example').on('click', 'input[type=checkbox]', function() {
+        $('#example').on('click', '.rowCheck', function() {
             $(this).parents('tr').toggleClass('selected');
+        });
+
+        $('#example').on('click', '#allCheck', function() {
+            var allCheck = this;
+            $(this).parents('table').find('.rowCheck').each(function() {
+                this.checked = allCheck.checked;
+                if (this.checked)
+                    $(this).parents('tr').addClass('selected');
+                else
+                    $(this).parents('tr').removeClass('selected');
+            });
         });
 
         $('#delete').on('click', function() {
