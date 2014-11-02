@@ -31,8 +31,16 @@
 
 <script>
     var eveApp = angular.module('eveApp', []);
+    eveApp.config(function($httpProvider) {
+        //Enable cross domain calls
+        $httpProvider.defaults.useXDomain = true;
+    });
     eveApp.controller('EveController', function($scope, $http) {
-        $http.get('/docs/spec.json').then(function(data) {
+        $http({
+            url: 'http://localhost:5000/docs/spec.json',
+            method: 'GET',
+
+        }).then(function(data) {
             $scope.schema = data.data;
             $scope.columns = [{data: null, orderable: false, defaultContent: '<input class="rowCheck" type="checkbox"></input>', 'title': '<input id="allCheck" type="checkbox"></input>'}]
                 .concat($scope.schema.domains.people['/people'].POST.params
@@ -69,7 +77,7 @@
                     }
         
                     $.ajax({
-                        url: 'people',
+                        url: 'http://localhost:5000/people',
                         cache: false,
                         data: requestData,
                         success: function(data) {
