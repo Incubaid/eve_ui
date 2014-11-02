@@ -35,3 +35,4 @@ RESOURCE_METHODS = ['GET', 'POST']
 ITEM_METHODS = ['GET', 'PATCH', 'PUT', 'DELETE']
 X_DOMAINS = '*'
 MONGO_QUERY_BLACKLIST = []
+X_HEADERS = ["X-HTTP-Method-Override", 'If-Match']
